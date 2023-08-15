@@ -13,11 +13,8 @@ SVM,RF,NNあたりでスタッキング(各モデルごとに用いるfeatureを
 
 前処理 
 odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正
-region：多すぎ、ダミー変数で対応？
+region：多すぎ、embeddingで対応　or　スペース区切りで前と後ろに分けてembeddingとか
 manufacturer〇
 cylinders
-drive
 size
-
-標準化を、train_dataの平均分散でtestdataも行う(二値変数は標準化しない)
 """
