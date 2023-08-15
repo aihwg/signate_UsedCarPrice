@@ -15,6 +15,13 @@ import mojimoji
 
 train=pd.read_csv("train.csv")
 test=pd.read_csv("test.csv")
+# print(train.info())
+# print(train.shape[0]-train.count())
+# train.hist()
+# plt.tight_layout()
+# plt.show()
+
+#---------------------------------------------------------------------------------------------------------
 #前処理manufacturer
 train["manufacturer"]=train["manufacturer"].str.lower()
 train["manufacturer"]=train["manufacturer"].apply(mojimoji.zen_to_han)
@@ -49,10 +56,11 @@ cylinders：str型だけど、カテゴリ変数ではない ['6 cylinders', '8 
 drive：カテゴリ変数にするべきかどうか　['rwd', 'fwd', '4wd'])
 size：なんか同じ文字でも違うって認識されてる['mid-size', 'full-size', 'sub-compact', 'compact', 'full−size', 'fullーsize', 'mid−size', 'midーsize', 'subーcompact']
 '''
+#---------------------------------------------------------------------------------------------------------
 
-# print(test.shape)
-# # # 欠損値を表示
-# # print(train.shape[0]-train.count())#fuel 1239,title_status 456,type 456,state 3304
+
+# # 欠損値を表示
+# print(train.shape[0]-train.count())#fuel 1239,title_status 456,type 456,state 3304
 
 # #labelencoder
 # import pickle
@@ -72,10 +80,14 @@ size：なんか同じ文字でも違うって認識されてる['mid-size', 'fu
 # train=train.drop('id',axis=1)
 # test=test.drop('id',axis=1)
 
-# #正規化
+# #標準化(trainデータの平均分散でtestデータを標準化したつもり)
 # ms = MinMaxScaler()
 # train = ms.fit_transform(train)
-# test = ms.fit_transform(test)
+# test = ms.fit_transform(train)
+# # #標準化
+# # ms = MinMaxScaler()
+# # train = ms.fit_transform(train)
+# # test = ms.fit_transform(test)
 
 # #FSFW
 # mi=mutual_info_regression(train, label)
