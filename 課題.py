@@ -13,7 +13,8 @@ Stackingで精度をあげるために、いかに精度が高いながらも多
 年間総距離は走行距離を年数で割る
 odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正
 
-manufacturerの違和感の確認
-manufacturerが一部全角や大文字になっています。
-この場合、toyotaとTOYOTAは異なるデータとして扱われますが、これは正しい扱い方でしょうか?
+manufacturer〇
+cylinders
+drive
+size
 """
