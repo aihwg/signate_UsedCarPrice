@@ -19,7 +19,6 @@ lightgbm
     cylinders〇
     size〇
     state,type,paint_color,manufacturerをtarget encodingやる〇
-    欠損値を-9999とかにするとか、目的変数として埋める
     train_dataの平均とかを使って、testデータを標準化〇※上手くいかなかった、trainとtestを縦に結合してms.fitしたやつを使って、それぞれtransformしてもいいかも
     数値データをrankgaussやるとか
 """
