@@ -5,16 +5,21 @@ lightgbm
     多数決の場合は予測が真値と離れてても少しなら影響ないが、平均なら絶対影響あるから、
     他の学習手法と合わせて平均することに甘んじずに、一つ一つの弱識別器の過学習に気をつけるべき
 
-SVM,RF,NNあたりでスタッキング(各モデルごとに用いるfeatureを変えたりとかして、モデル間の相関を減らす)
-
 特徴量の作成(Feature Engineering)
     年間総距離は走行距離を年数で割る
-    欠損値があるかとか、欠損値の数とか、そのパターンとか
+    欠損値があるかとか、instance欠損値、、数とか〇
+    Umapして次元削減したり、Umapの結果をfeatureに加えたり
+    denoising autoencoderで、次元削減したり、新たなfeatureに加えたり
+    クラスタリングでinstanceごとに、クラスターまでの距離をfeatureに加えたり
 
 前処理 
-odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正
-region：多すぎ、embeddingで対応　or　スペース区切りで前と後ろに分けてembeddingとか
-manufacturer〇
-cylinders
-size
+    odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正
+    region：embeddingやる
+    manufacturer〇
+    cylinders〇
+    size〇
+    state,type,paint_color,manufacturerをtarget encodingやる〇
+    欠損値を-9999とかにするとか、目的変数として埋める
+    train_dataの平均とかを使って、testデータを標準化〇※上手くいかなかった、trainとtestを縦に結合してms.fitしたやつを使って、それぞれtransformしてもいいかも
+    数値データをrankgaussやるとか
 """
