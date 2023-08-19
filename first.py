@@ -14,6 +14,7 @@ import seaborn as sns; sns.set() # グラフ描画用
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
 
+
 train=pd.read_csv("train.csv")
 test=pd.read_csv("test.csv")
 label=train['price']
@@ -37,7 +38,22 @@ test_miss=test.isnull().any(axis=1)
 test_miss=pd.DataFrame(test_miss)
 test_miss.columns=['miss']
 test_miss=test_miss.astype(int)
-# test=pd.concat([test,miss],axis=1)
+
+# #########
+# train=train.drop('year',axis=1)
+# train=train.drop('odometer',axis=1)
+
+# train=train.to_numpy()
+# # print(train.info())
+# for i in range(train.shape[1]):
+#     dictT={}
+#     k=0
+#     for j in range(train.shape[0]):
+#         if train[j][i] not in dictT.keys():
+#             dictT[train[j][i]]=k
+#             k=k+1
+#     print(dictT.keys(),'\n')
+# #########
 
 #---------------------------------------------------------------------------------------------------------
 #前処理manufacturer 全角半角変換
@@ -94,137 +110,124 @@ enc_auto = TargetEncoder(smooth="auto",target_type="continuous")
 enc_auto.fit(train.loc[:,['state']], label)
 train.loc[:,['state']]=enc_auto.transform(train.loc[:,['state']])
 test.loc[:,['state']]=enc_auto.transform(test.loc[:,['state']])
-
 enc_auto.fit(train.loc[:,['type']], label)
 train.loc[:,['type']]=enc_auto.transform(train.loc[:,['type']])
 test.loc[:,['type']]=enc_auto.transform(test.loc[:,['type']])
-
 enc_auto.fit(train.loc[:,['paint_color']], label)
 train.loc[:,['paint_color']]=enc_auto.transform(train.loc[:,['paint_color']])
 test.loc[:,['paint_color']]=enc_auto.transform(test.loc[:,['paint_color']])
-
 enc_auto.fit(train.loc[:,['manufacturer']], label)
 train.loc[:,['manufacturer']]=enc_auto.transform(train.loc[:,['manufacturer']])
 test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
 
+#---------------------------------------------------------------------------------------------------------
+#enbedding word2vec
+# from gensim.models import KeyedVectors
+# # Load vectors directly from the file
+# model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+# print(model["statecollege"])
+# print(model["statecollege"].shape)
+# # print(model[train['region'].to_list()])
 
-# #########
-# train=train.drop('price',axis=1)
-# train=train.drop('id',axis=1)
-# train=train.drop('year',axis=1)
-# train=train.drop('odometer',axis=1)
+from sentence_transformers import SentenceTransformer
+import umap
+sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
+train_resion = sbert_model.encode(train['region'].to_list())
 
-# train=train.to_numpy()
-# # print(train.info())
-# for i in range(train.shape[1]):
-#     dictT={}
-#     k=0
-#     for j in range(train.shape[0]):
-#         if train[j][i] not in dictT.keys():
-#             dictT[train[j][i]]=k
-#             k=k+1
-#     print(dictT.keys(),'\n')
-# #########
-# #########
-# test=test.drop('id',axis=1)
-# test=test.drop('year',axis=1)
-# test=test.drop('odometer',axis=1)
+mapper = umap.UMAP(random_state=0)
+train_resion = mapper.fit_transform(train_resion)
+print(type(train_resion))
+print(train_resion)
 
-# test=test.to_numpy()
-# # print(train.info())
-# for i in range(test.shape[1]):
-#     dictT={}
-#     k=0
-#     for j in range(test.shape[0]):
-#         if test[j][i] not in dictT.keys():
-#             dictT[test[j][i]]=k
-#             k=k+1
-#     print(dictT.keys(),'\n')
-# #########
+test_resion = sbert_model.encode(test['region'].to_list())
+test_resion = mapper.fit_transform(test_resion)
+print(type(test_resion))
+print(test_resion)
+#---------------------------------------------------------------------------------------------------------
 
 
 
-# # 欠損値を表示
-# print(train.shape[0]-train.count())#fuel 1239,title_status 456,type 456,state 3304
+# # # 欠損値を表示
+# # print(train.shape[0]-train.count())#fuel 1239,title_status 456,type 456,state 3304
 
-#labelencoder
-import pickle
-for i in ['region','condition','fuel','title_status','transmission','drive']:
-    le = LabelEncoder()
-    enctra = le.fit_transform(train[i])
-    train[i]=enctra
-    with open('label.pickle', 'wb') as web:
-        pickle.dump(le , web)
-    with open('label.pickle', 'rb') as web:
-        le = pickle.load(web)
-    enctes = le.transform(test[i])
-    test[i]=enctes
+# #labelencoder
+# import pickle
+# for i in ['region','condition','fuel','title_status','transmission','drive']:
+#     le = LabelEncoder()
+#     enctra = le.fit_transform(train[i])
+#     train[i]=enctra
+#     with open('label.pickle', 'wb') as web:
+#         pickle.dump(le , web)
+#     with open('label.pickle', 'rb') as web:
+#         le = pickle.load(web)
+#     enctes = le.transform(test[i])
+#     test[i]=enctes
 
 
 
-#標準化（trainでfit）
-ms = MinMaxScaler()
-# ms.fit(train)
-# train=ms.transform(train)
-# test=ms.transform(test)
-#標準化(それぞれでfit_transform)
-train = ms.fit_transform(train)
-test = ms.fit_transform(test)
+# #標準化（trainでfit）
+# ms = MinMaxScaler()
+# # ms.fit(train)
+# # train=ms.transform(train)
+# # test=ms.transform(test)
+# #標準化(それぞれでfit_transform)
+# train = ms.fit_transform(train)
+# test = ms.fit_transform(test)
 
-#FSFW
-mi=mutual_info_regression(train, label)
-train=train*mi
-test=test*mi
-# z=0
-# zz=[]
-# for i in range(len(mi)):
-#     if 0.1>=mi[i]:
-#         zz.append(i)
-#     z=z+1
-# train=np.delete(train,zz,1)
-# test=np.delete(test,zz,1)
+# #FSFW
+# mi=mutual_info_regression(train, label)
+# train=train*mi
+# test=test*mi
+# # z=0
+# # zz=[]
+# # for i in range(len(mi)):
+# #     if 0.1>=mi[i]:
+# #         zz.append(i)
+# #     z=z+1
+# # train=np.delete(train,zz,1)
+# # test=np.delete(test,zz,1)
 
-#ここで、missのfeatureを追加
-train_miss = ms.fit_transform(train_miss)
-test_miss=ms.fit_transform(test_miss)
-train=np.hstack([train,train_miss])
-test=np.hstack([test,test_miss])
+# #ここで、missのfeatureを追加
+# train_miss = ms.fit_transform(train_miss)
+# test_miss=ms.fit_transform(test_miss)
+# train=np.hstack([train,train_miss])
+# test=np.hstack([test,test_miss])
 
-train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7)
-lgb_train = lgb.Dataset(train_data, train_label)
-lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
+# train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7)
+# lgb_train = lgb.Dataset(train_data, train_label)
+# lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
 
-# LightGBM parameters
-params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'regression', # 目的 : 回帰  
-        'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
-}
+# # LightGBM parameters
+# params = {
+#         'task': 'train',
+#         'boosting_type': 'gbdt',
+#         'objective': 'regression', # 目的 : 回帰  
+#         'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
+# }
 
-# モデルの学習
-model = lgb.train(params,
-                  train_set=lgb_train, # トレーニングデータの指定
-                  valid_sets=lgb_eval, # 検証データの指定
-                  )
+# # モデルの学習
+# model = lgb.train(params,
+#                   train_set=lgb_train, # トレーニングデータの指定
+#                   valid_sets=lgb_eval, # 検証データの指定
+#                   )
 
-# テストデータの予測
-lgb_pred = model.predict(valid_data)
-df_pred = pd.DataFrame({'CRIM':valid_label,'CRIM_pred':lgb_pred})
-print(df_pred)
+# # テストデータの予測
+# lgb_pred = model.predict(valid_data)
+# df_pred = pd.DataFrame({'CRIM':valid_label,'CRIM_pred':lgb_pred})
+# print(df_pred)
 
-# モデル評価
-# rmse : 平均二乗誤差の平方根
-mse = mean_squared_error(valid_label, lgb_pred) # MSE(平均二乗誤差)の算出
-rmse = np.sqrt(mse) # RSME = √MSEの算出
-print('RMSE :',rmse)
+# # モデル評価
+# # rmse : 平均二乗誤差の平方根
+# mse = mean_squared_error(valid_label, lgb_pred) # MSE(平均二乗誤差)の算出
+# rmse = np.sqrt(mse) # RSME = √MSEの算出
+# print('RMSE :',rmse)
 
-#r2 : 決定係数
-r2 = r2_score(valid_label,lgb_pred)
-print('R2 :',r2)
+# #r2 : 決定係数
+# r2 = r2_score(valid_label,lgb_pred)
+# print('R2 :',r2)
 
-pred=model.predict(test)
-sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
-# print(sub)
-sub['ans'] = pred
-sub.to_csv("first.csv", header=False, index=False)
+# pred=model.predict(test)
+# sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
+# # print(sub)
+# sub['ans'] = pred
+# sub.to_csv("first.csv", header=False, index=False)

@@ -21,4 +21,7 @@ lightgbm
     state,type,paint_color,manufacturerをtarget encodingやる〇
     train_dataの平均とかを使って、testデータを標準化〇※上手くいかなかった、trainとtestを縦に結合してms.fitしたやつを使って、それぞれtransformしてもいいかも
     数値データをrankgaussやるとか
+
+
+    feature(resion)をembeddingして、それを次元削減したい
 """
