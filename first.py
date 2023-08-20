@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt # グラフ描画用
 import seaborn as sns; sns.set() # グラフ描画用
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
+from sklearn.metrics import mean_absolute_percentage_error
 
 
 train=pd.read_csv("train.csv")
@@ -21,13 +22,45 @@ label=train['price']
 train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
+# print(train['year'].min())
+# print(test.shape)
 # print(train.info())
 # print(train.shape[0]-train.count())
 # train.hist()
 # plt.tight_layout()
 # plt.show()
-# print(train['odometer'].min())
 
+#---------------------------------------------------------------------------------------------------------
+# # #前処理odometer
+# # print(train[train.odometer < 0].shape)
+# # print(test[test.odometer < 0])
+# for i in range(train.shape[0]):
+#     if train['odometer'][i]==-131869:
+#         train['odometer'][i]=131869
+#---------------------------------------------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------------------------------------------
+#前処理year:~2022
+# print(type(train['year'][0]))
+for i in range(train.shape[0]):
+    if train['year'][i]>=2023:
+        train['year'][i]=train['year'][i]-1000
+
+for i in range(test.shape[0]):
+    if test['year'][i]>=2023:
+        test['year'][i]=test['year'][i]-1000
+#---------------------------------------------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------------------------------------------
+#Feature Engineering：年間走行距離
+train['annual_mileage']=train['odometer'].div(2023-train['year'])
+test['annual_mileage']=test['odometer'].div(2023-test['year'])
+#---------------------------------------------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------------------------------------------
 #欠損値がある行を01で示すfeature作成
 train_miss=train.isnull().any(axis=1)
 train_miss=pd.DataFrame(train_miss)
@@ -38,6 +71,8 @@ test_miss=test.isnull().any(axis=1)
 test_miss=pd.DataFrame(test_miss)
 test_miss.columns=['miss']
 test_miss=test_miss.astype(int)
+#---------------------------------------------------------------------------------------------------------
+
 
 # #########
 # train=train.drop('year',axis=1)
@@ -104,7 +139,26 @@ test['size']=test['size'].str.replace('sub-compact','2')
 test['size']=test['size'].str.replace('compact','1')
 test['size']=test['size'].astype(int)
 
+#前処理condition　カテゴリ変数から数値変数
+train['condition']=train['condition'].str.replace('salvage','1')
+train['condition']=train['condition'].str.replace('fair','2')
+train['condition']=train['condition'].str.replace('good','3')
+train['condition']=train['condition'].str.replace('excellent','4')
+train['condition']=train['condition'].str.replace('like new','5')
+train['condition']=train['condition'].str.replace('new','6')
+train['condition']=train['condition'].astype(int)
 
+test['condition']=test['condition'].str.replace('salvage','1')
+test['condition']=test['condition'].str.replace('fair','2')
+test['condition']=test['condition'].str.replace('good','3')
+test['condition']=test['condition'].str.replace('excellent','4')
+test['condition']=test['condition'].str.replace('like new','5')
+test['condition']=test['condition'].str.replace('new','6')
+test['condition']=test['condition'].astype(int)
+#---------------------------------------------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------------------------------------------
 #target encoding
 enc_auto = TargetEncoder(smooth="auto",target_type="continuous")
 enc_auto.fit(train.loc[:,['state']], label)
@@ -119,115 +173,135 @@ test.loc[:,['paint_color']]=enc_auto.transform(test.loc[:,['paint_color']])
 enc_auto.fit(train.loc[:,['manufacturer']], label)
 train.loc[:,['manufacturer']]=enc_auto.transform(train.loc[:,['manufacturer']])
 test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
-
-#---------------------------------------------------------------------------------------------------------
-#enbedding word2vec
-# from gensim.models import KeyedVectors
-# # Load vectors directly from the file
-# model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-# print(model["statecollege"])
-# print(model["statecollege"].shape)
-# # print(model[train['region'].to_list()])
-
-from sentence_transformers import SentenceTransformer
-import umap
-sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
-train_resion = sbert_model.encode(train['region'].to_list())
-
-mapper = umap.UMAP(random_state=0)
-train_resion = mapper.fit_transform(train_resion)
-print(type(train_resion))
-print(train_resion)
-
-test_resion = sbert_model.encode(test['region'].to_list())
-test_resion = mapper.fit_transform(test_resion)
-print(type(test_resion))
-print(test_resion)
 #---------------------------------------------------------------------------------------------------------
 
 
+#---------------------------------------------------------------------------------------------------------
+# #enbedding word2vec
+# # from gensim.models import KeyedVectors  #GoogleNews-vectors-negative300.bin
+# # # Load vectors directly from the file
+# # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+# # print(model["statecollege"])
+# # print(model["statecollege"].shape)
+# # # print(model[train['region'].to_list()])
 
-# # # 欠損値を表示
-# # print(train.shape[0]-train.count())#fuel 1239,title_status 456,type 456,state 3304
+# from sentence_transformers import SentenceTransformer
+# import umap
+# sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
+# train_resion = sbert_model.encode(train['region'].to_list())
+# mapper = umap.UMAP(random_state=0)
+# train_resion = mapper.fit_transform(train_resion)
+# test_resion = sbert_model.encode(test['region'].to_list())
+# test_resion = mapper.fit_transform(test_resion)
 
-# #labelencoder
-# import pickle
-# for i in ['region','condition','fuel','title_status','transmission','drive']:
-#     le = LabelEncoder()
-#     enctra = le.fit_transform(train[i])
-#     train[i]=enctra
-#     with open('label.pickle', 'wb') as web:
-#         pickle.dump(le , web)
-#     with open('label.pickle', 'rb') as web:
-#         le = pickle.load(web)
-#     enctes = le.transform(test[i])
-#     test[i]=enctes
+# train=train.drop('region',axis=1)
+# test=test.drop('region',axis=1)
+# train_resion=pd.DataFrame(train_resion,columns=['region_0','region_1'])
+# test_resion=pd.DataFrame(test_resion,columns=['region_0','region_1'])
+# train=train.assign(resion_0=train_resion['region_0'],resion_1=train_resion['region_1'])
+# test=test.assign(resion_0=test_resion['region_0'],resion_1=test_resion['region_1'])
+#---------------------------------------------------------------------------------------------------------
 
 
+#---------------------------------------------------------------------------------------------------------
+#labelencoder
+import pickle
+for i in ['region','fuel','title_status','transmission','drive']:
+    le = LabelEncoder()
+    enctra = le.fit_transform(train[i])
+    train[i]=enctra
+    with open('label.pickle', 'wb') as web:
+        pickle.dump(le , web)
+    with open('label.pickle', 'rb') as web:
+        le = pickle.load(web)
+    enctes = le.transform(test[i])
+    test[i]=enctes
+#---------------------------------------------------------------------------------------------------------
 
-# #標準化（trainでfit）
-# ms = MinMaxScaler()
-# # ms.fit(train)
-# # train=ms.transform(train)
-# # test=ms.transform(test)
-# #標準化(それぞれでfit_transform)
-# train = ms.fit_transform(train)
-# test = ms.fit_transform(test)
 
-# #FSFW
-# mi=mutual_info_regression(train, label)
-# train=train*mi
-# test=test*mi
-# # z=0
-# # zz=[]
-# # for i in range(len(mi)):
-# #     if 0.1>=mi[i]:
-# #         zz.append(i)
-# #     z=z+1
-# # train=np.delete(train,zz,1)
-# # test=np.delete(test,zz,1)
+#---------------------------------------------------------------------------------------------------------
+#数値データをrankgaus
+#---------------------------------------------------------------------------------------------------------
 
-# #ここで、missのfeatureを追加
-# train_miss = ms.fit_transform(train_miss)
-# test_miss=ms.fit_transform(test_miss)
-# train=np.hstack([train,train_miss])
-# test=np.hstack([test,test_miss])
 
-# train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7)
-# lgb_train = lgb.Dataset(train_data, train_label)
-# lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
+#---------------------------------------------------------------------------------------------------------
+#標準化（trainでfit）
+ms = MinMaxScaler()
+# ms.fit(train)
+# train=ms.transform(train)
+# test=ms.transform(test)
+#標準化(それぞれでfit_transform)
+train = ms.fit_transform(train)
+test = ms.fit_transform(test)
+#---------------------------------------------------------------------------------------------------------
 
-# # LightGBM parameters
-# params = {
-#         'task': 'train',
-#         'boosting_type': 'gbdt',
-#         'objective': 'regression', # 目的 : 回帰  
-#         'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
-# }
+#---------------------------------------------------------------------------------------------------------
+#FSFW
+mi=mutual_info_regression(train, label)
+train=train*mi
+test=test*mi
+# print(mi)
+# z=0
+# zz=[]
+# for i in range(len(mi)):
+#     if 0.05>=mi[i]:
+#         zz.append(i)
+#     z=z+1
+# train=np.delete(train,zz,1)
+# test=np.delete(test,zz,1)
+#---------------------------------------------------------------------------------------------------------
 
-# # モデルの学習
-# model = lgb.train(params,
-#                   train_set=lgb_train, # トレーニングデータの指定
-#                   valid_sets=lgb_eval, # 検証データの指定
-#                   )
+#ここで、missのfeatureを追加
+train_miss = ms.fit_transform(train_miss)
+test_miss=ms.fit_transform(test_miss)
+train=np.hstack([train,train_miss])
+test=np.hstack([test,test_miss])
+print(train.shape)
+print(test.shape)
 
-# # テストデータの予測
-# lgb_pred = model.predict(valid_data)
-# df_pred = pd.DataFrame({'CRIM':valid_label,'CRIM_pred':lgb_pred})
+train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7,random_state=1)
+lgb_train = lgb.Dataset(train_data, train_label)
+lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
+
+# LightGBM parameters
+params = {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'regression', # 目的 : 回帰  
+        'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
+        'seed':42
+}
+
+# モデルの学習
+model = lgb.train(params,
+                  train_set=lgb_train, # トレーニングデータの指定
+                  valid_sets=lgb_eval, # 検証データの指定
+                  )
+
+# テストデータの予測
+t_pred = model.predict(train_data)
+v_pred = model.predict(valid_data)
+plt.scatter(t_pred, train_label)
+plt.xlabel("train_predict")
+plt.ylabel("train_label")
+plt.show()
+plt.scatter(v_pred, valid_label)
+plt.xlabel("valid_predict")
+plt.ylabel("valid_label")
+plt.show()
+# df_pred = pd.DataFrame({'CRIM':valid_label,'CRIM_pred':v_pred})
 # print(df_pred)
 
-# # モデル評価
-# # rmse : 平均二乗誤差の平方根
-# mse = mean_squared_error(valid_label, lgb_pred) # MSE(平均二乗誤差)の算出
-# rmse = np.sqrt(mse) # RSME = √MSEの算出
-# print('RMSE :',rmse)
+#---------------------------------------------------------------------------------------------------------
+# モデル評価
+#mean_absolute_percentage_error
+t_m = mean_absolute_percentage_error(train_label,t_pred)
+print('train error :',t_m)
+v_m = mean_absolute_percentage_error(valid_label,v_pred)
+print('valid error :',v_m)
+#---------------------------------------------------------------------------------------------------------
 
-# #r2 : 決定係数
-# r2 = r2_score(valid_label,lgb_pred)
-# print('R2 :',r2)
-
-# pred=model.predict(test)
-# sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
-# # print(sub)
-# sub['ans'] = pred
-# sub.to_csv("first.csv", header=False, index=False)
+pred=model.predict(test)
+sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
+sub['ans'] = pred
+sub.to_csv("first.csv", header=False, index=False)
