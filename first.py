@@ -14,6 +14,10 @@ import seaborn as sns; sns.set() # グラフ描画用
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
 from sklearn.metrics import mean_absolute_percentage_error
+import umap
+from geopy.geocoders import OpenCage
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
+from concurrent.futures import ThreadPoolExecutor
 
 
 train=pd.read_csv("train.csv")
@@ -23,7 +27,7 @@ train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
 # print(train['year'].min())
-# print(test.shape)
+print(train.shape)
 # print(train.info())
 # print(train.shape[0]-train.count())
 # train.hist()
@@ -186,7 +190,6 @@ test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
 # # # print(model[train['region'].to_list()])
 
 # from sentence_transformers import SentenceTransformer
-# import umap
 # sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
 # train_resion = sbert_model.encode(train['region'].to_list())
 # mapper = umap.UMAP(random_state=0)
@@ -198,8 +201,22 @@ test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
 # test=test.drop('region',axis=1)
 # train_resion=pd.DataFrame(train_resion,columns=['region_0','region_1'])
 # test_resion=pd.DataFrame(test_resion,columns=['region_0','region_1'])
-# train=train.assign(resion_0=train_resion['region_0'],resion_1=train_resion['region_1'])
+# train=train.assign(r特徴量生成特徴量生成_0=train_resion['region_0'],resion_1=train_resion['region_1'])
 # test=test.assign(resion_0=test_resion['region_0'],resion_1=test_resion['region_1'])
+
+
+# cities = np.array(['florence / muscle shoals', 'New York', 'London'])
+# # cities=train['region'].to_numpy()
+# geolocator = GoogleV3(api_key='YOUR_API_KEY_HERE')
+# def get_location(city):
+#     try:
+#         return geolocator.geocode(city)
+#     except (GeocoderTimedOut, GeocoderUnavailable):
+#         return None
+# with ThreadPoolExecutor() as executor:
+#     locations = list(executor.map(get_location, cities))
+# df = pd.DataFrame({'City': cities, 'Latitude': [location.latitude if location else None for location in locations], 'Longitude': [location.longitude if location else None for location in locations]})
+# print(df)
 #---------------------------------------------------------------------------------------------------------
 
 
@@ -219,21 +236,41 @@ for i in ['region','fuel','title_status','transmission','drive']:
 #---------------------------------------------------------------------------------------------------------
 
 
+# #---------------------------------------------------------------------------------------------------------
+# #umapで特徴量生成
+# mapper = umap.UMAP(random_state=0)
+# train_umap = mapper.fit_transform(train)
+# train_umap=pd.DataFrame(train_umap,columns=['umap_0','umap_1'])
+# train=train.assign(umap_0=train_umap['umap_0'],umap_1=train_umap['umap_1'])
+# test_umap = mapper.fit_transform(test)
+# test_umap=pd.DataFrame(test_umap,columns=['umap_0','umap_1'])
+# test=test.assign(umap_0=test_umap['umap_0'],umap_1=test_umap['umap_1'])
+# #---------------------------------------------------------------------------------------------------------
+
+
 #---------------------------------------------------------------------------------------------------------
 #数値データをrankgaus
 #---------------------------------------------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------------------------------------------
-#標準化（trainでfit）
+# #標準化（trainとtestをconcatしてから、標準化）
+# train_test=pd.concat([train,test])
 ms = MinMaxScaler()
+# ms.fit(train_test)
+# train=ms.transform(train)
+# test=ms.transform(test)
+
+# # 標準化（trainでfit）
 # ms.fit(train)
 # train=ms.transform(train)
 # test=ms.transform(test)
+# print(train.min(),train.max())
+# print(test.min(),test.max())
 #標準化(それぞれでfit_transform)
 train = ms.fit_transform(train)
 test = ms.fit_transform(test)
-#---------------------------------------------------------------------------------------------------------
+# #---------------------------------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------------------------------
 #FSFW
@@ -256,8 +293,6 @@ train_miss = ms.fit_transform(train_miss)
 test_miss=ms.fit_transform(test_miss)
 train=np.hstack([train,train_miss])
 test=np.hstack([test,test_miss])
-print(train.shape)
-print(test.shape)
 
 train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7,random_state=1)
 lgb_train = lgb.Dataset(train_data, train_label)
