@@ -26,13 +26,33 @@ label=train['price']
 train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
-# print(train['year'].min())
-print(train.shape)
+# print(train['region'].nunique())
+# print(train['type'])
 # print(train.info())
 # print(train.shape[0]-train.count())
 # train.hist()
 # plt.tight_layout()
 # plt.show()
+
+
+# #########
+# train=train.drop('year',axis=1)
+# train=train.drop('odometer',axis=1)
+
+# train=train.to_numpy()
+# # print(train.info())
+# for i in range(train.shape[1]):
+#     dictT={}
+#     k=0
+#     for j in range(train.shape[0]):
+#         if train[j][i] not in dictT.keys():
+#             dictT[train[j][i]]=k
+#             k=k+1
+#     print(dictT.keys(),'\n')
+# #########
+
+
+
 
 #---------------------------------------------------------------------------------------------------------
 # #前処理odometer
@@ -77,22 +97,6 @@ test_miss.columns=['miss']
 test_miss=test_miss.astype(int)
 #---------------------------------------------------------------------------------------------------------
 
-
-# #########
-# train=train.drop('year',axis=1)
-# train=train.drop('odometer',axis=1)
-
-# train=train.to_numpy()
-# # print(train.info())
-# for i in range(train.shape[1]):
-#     dictT={}
-#     k=0
-#     for j in range(train.shape[0]):
-#         if train[j][i] not in dictT.keys():
-#             dictT[train[j][i]]=k
-#             k=k+1
-#     print(dictT.keys(),'\n')
-# #########
 
 #---------------------------------------------------------------------------------------------------------
 #前処理manufacturer 全角半角変換
@@ -165,6 +169,9 @@ test['condition']=test['condition'].astype(int)
 #---------------------------------------------------------------------------------------------------------
 #target encoding
 enc_auto = TargetEncoder(smooth="auto",target_type="continuous")
+enc_auto.fit(train.loc[:,['region']], label)
+train.loc[:,['region']]=enc_auto.transform(train.loc[:,['region']])
+test.loc[:,['region']]=enc_auto.transform(test.loc[:,['region']])
 enc_auto.fit(train.loc[:,['state']], label)
 train.loc[:,['state']]=enc_auto.transform(train.loc[:,['state']])
 test.loc[:,['state']]=enc_auto.transform(test.loc[:,['state']])
@@ -177,6 +184,18 @@ test.loc[:,['paint_color']]=enc_auto.transform(test.loc[:,['paint_color']])
 enc_auto.fit(train.loc[:,['manufacturer']], label)
 train.loc[:,['manufacturer']]=enc_auto.transform(train.loc[:,['manufacturer']])
 test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
+enc_auto.fit(train.loc[:,['fuel']], label)
+train.loc[:,['fuel']]=enc_auto.transform(train.loc[:,['fuel']])
+test.loc[:,['fuel']]=enc_auto.transform(test.loc[:,['fuel']])
+enc_auto.fit(train.loc[:,['title_status']], label)
+train.loc[:,['title_status']]=enc_auto.transform(train.loc[:,['title_status']])
+test.loc[:,['title_status']]=enc_auto.transform(test.loc[:,['title_status']])
+enc_auto.fit(train.loc[:,['transmission']], label)
+train.loc[:,['transmission']]=enc_auto.transform(train.loc[:,['transmission']])
+test.loc[:,['transmission']]=enc_auto.transform(test.loc[:,['transmission']])
+enc_auto.fit(train.loc[:,['drive']], label)
+train.loc[:,['drive']]=enc_auto.transform(train.loc[:,['drive']])
+test.loc[:,['drive']]=enc_auto.transform(test.loc[:,['drive']])
 #---------------------------------------------------------------------------------------------------------
 
 
@@ -204,7 +223,6 @@ test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
 # train=train.assign(r特徴量生成特徴量生成_0=train_resion['region_0'],resion_1=train_resion['region_1'])
 # test=test.assign(resion_0=test_resion['region_0'],resion_1=test_resion['region_1'])
 
-
 # cities = np.array(['florence / muscle shoals', 'New York', 'London'])
 # # cities=train['region'].to_numpy()
 # geolocator = GoogleV3(api_key='YOUR_API_KEY_HERE')
@@ -220,20 +238,24 @@ test.loc[:,['manufacturer']]=enc_auto.transform(test.loc[:,['manufacturer']])
 #---------------------------------------------------------------------------------------------------------
 
 
-#---------------------------------------------------------------------------------------------------------
-#labelencoder
-import pickle
-for i in ['region','fuel','title_status','transmission','drive']:
-    le = LabelEncoder()
-    enctra = le.fit_transform(train[i])
-    train[i]=enctra
-    with open('label.pickle', 'wb') as web:
-        pickle.dump(le , web)
-    with open('label.pickle', 'rb') as web:
-        le = pickle.load(web)
-    enctes = le.transform(test[i])
-    test[i]=enctes
-#---------------------------------------------------------------------------------------------------------
+
+
+# #---------------------------------------------------------------------------------------------------------
+# #labelencoder
+# import pickle
+# for i in ['transmission','drive']:
+#     le = LabelEncoder()
+#     enctra = le.fit_transform(train[i])
+#     train[i]=enctra
+#     with open('label.pickle', 'wb') as web:
+#         pickle.dump(le , web)
+#     with open('label.pickle', 'rb') as web:
+#         le = pickle.load(web)
+#     enctes = le.transform(test[i])
+#     test[i]=enctes
+# #---------------------------------------------------------------------------------------------------------
+
+
 
 
 # #---------------------------------------------------------------------------------------------------------
