@@ -35,12 +35,12 @@ print(train.shape)
 # plt.show()
 
 #---------------------------------------------------------------------------------------------------------
-# # #前処理odometer
-# # print(train[train.odometer < 0].shape)
-# # print(test[test.odometer < 0])
-# for i in range(train.shape[0]):
-#     if train['odometer'][i]==-131869:
-#         train['odometer'][i]=131869
+# #前処理odometer
+# print(train[train.odometer < 0].shape)
+# print(test[test.odometer < 0])
+for i in range(train.shape[0]):
+    if train['odometer'][i]==-131869:
+        train['odometer'][i]=131869
 #---------------------------------------------------------------------------------------------------------
 
 
