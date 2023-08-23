@@ -5,7 +5,9 @@ lightgbmm
     多数決の場合は予測が真値と離れてても少しなら影響ないが、平均なら絶対影響あるから、
     他の学習手法と合わせて平均することに甘んじずに、一つ一つの弱識別器の過学習に気をつけるべき
 
-〇スタッキング:lgbmXgbmNnのファイルの要領でkholdで複数モデルを作成し、sklearnのStackingRegressorに入れる
+スタッキング〇
+〇neural netでやってみる
+〇置き換えて消したfeatureを入れてみる
 
 特徴量の作成(Feature Engineering)
     年間総距離は走行距離を年数で割る、販売する時期を2023とする〇
@@ -131,20 +133,6 @@ lightgbmm
     train error : 0.6020156261941936
     valid error : 0.6544972425600211
 
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
-    前処理：year 2023以上を-1000
-    Feature Engineering：年間走行距離
-    Feature Engineering：行ごとに欠損値あるか
-    前処理：manufacturer 全角半角変換
-    前処理：cylinders カテゴリ変数から数値変数(other=-1)
-    前処理：size カテゴリ変数から数値変数
-    前処理：condition カテゴリ変数から数値変数
-    前処理：region,state,type,paint_color,manufacturer,fuel,title_status,transmission,drive target encoding
-    前処理：それぞれでfit_transform
-    ---------------------------------------------
-    train error : 0.6008032534531732
-    valid error : 0.6553316569795381
-
     前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆and 外れ値修正
     前処理：year 2023以上を-1000
     Feature Engineering：年間走行距離
@@ -158,4 +146,54 @@ lightgbmm
     ---------------------------------------------
     train error : 0.601341702653346
     valid error : 0.6546948922918145
+
+    
+
+    ◎
+    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
+    前処理：year 2023以上を-1000
+    Feature Engineering：年間走行距離
+    Feature Engineering：行ごとに欠損値あるか
+    前処理：manufacturer 全角半角変換
+    前処理：cylinders カテゴリ変数から数値変数(other=-1)
+    前処理：size カテゴリ変数から数値変数
+    前処理：condition カテゴリ変数から数値変数
+    前処理：region,state,type,paint_color,manufacturer,fuel,title_status,transmission,drive target encoding
+    前処理：それぞれでfit_transform
+    ---------------------------------------------
+    train error : 0.6008032534531732
+    valid error : 0.6553316569795381
+    
+    ◎
+    +
+    lgb_model=lgb.LGBMRegressor(random_state=42,max_depth=5,num_leaves=28)
+    ---------------------------------------------
+    train error : 0.6139368869725809
+    valid error : 0.6528597646674063
+
+    ◎
+    +
+    reg = StackingRegressor(
+    estimators=[
+                ('lgb_model0', lgb.LGBMRegressor(random_state=42)),
+                ('lgb_model1', lgb.LGBMRegressor(random_state=42,max_depth=5,num_leaves=28)),
+                ('lgb_model2', lgb.LGBMRegressor(random_state=42,max_depth=6,num_leaves=60)),
+                ('regr0', RandomForestRegressor(random_state=0,max_depth=8,n_estimators=200)),
+                ('regr1', RandomForestRegressor(random_state=0,max_depth=10,n_estimators=300))
+                ],
+    ---------------------------------------------
+    train error : 0.6127715614480659
+    valid error : 0.6588291291834685
+
+    ◎
+    +
+    reg = StackingRegressor(
+    estimators=[
+                ('lgb_model0', lgb.LGBMRegressor(random_state=42)),
+                ('lgb_model1', lgb.LGBMRegressor(random_state=42,max_depth=5,num_leaves=28)),
+                ('lgb_model2', lgb.LGBMRegressor(random_state=42,max_depth=6,num_leaves=60))
+                ],
+    ---------------------------------------------
+    train error : 0.6168278842464663
+    valid error : 0.6598677986048813
 """
