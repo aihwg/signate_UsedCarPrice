@@ -18,17 +18,8 @@ import umap
 from geopy.geocoders import OpenCage
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from concurrent.futures import ThreadPoolExecutor
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.callbacks import EarlyStopping
-from keras import losses
-from sklearn.metrics import mean_absolute_percentage_error
-from keras.initializers import he_normal
 from sklearn.ensemble import StackingRegressor
-
 
 train=pd.read_csv("train.csv")
 test=pd.read_csv("test.csv")
@@ -62,12 +53,8 @@ test=test.drop('id',axis=1)
 # #########
 
 
-
-
 #---------------------------------------------------------------------------------------------------------
 # #前処理odometer
-# print(train[train.odometer < 0].shape)
-# print(test[test.odometer < 0])
 for i in range(train.shape[0]):
     if train['odometer'][i]==-131869:
         train['odometer'][i]=131869
@@ -175,6 +162,8 @@ test['condition']=test['condition'].str.replace('new','6')
 test['condition']=test['condition'].astype(int)
 #---------------------------------------------------------------------------------------------------------
 
+train_lenc=train.copy()
+test_lenc=test.copy()
 
 #---------------------------------------------------------------------------------------------------------
 #target encoding
@@ -249,23 +238,38 @@ test.loc[:,['drive']]=enc_auto.transform(test.loc[:,['drive']])
 
 
 
+#---------------------------------------------------------------------------------------------------------
+#labelencoder
+import pickle
+for i in ["paint_color","type","fuel","title_status"]:
+    le = LabelEncoder()
+    enctra = le.fit_transform(train_lenc[i])
+    train_lenc[i]=enctra
+    with open('label.pickle', 'wb') as web:
+        pickle.dump(le , web)
+    with open('label.pickle', 'rb') as web:
+        le = pickle.load(web)
+    enctes = le.transform(test_lenc[i])
+    test_lenc[i]=enctes
+    
 
-# #---------------------------------------------------------------------------------------------------------
-# #labelencoder
-# import pickle
-# for i in ['transmission','drive']:
-#     le = LabelEncoder()
-#     enctra = le.fit_transform(train[i])
-#     train[i]=enctra
-#     with open('label.pickle', 'wb') as web:
-#         pickle.dump(le , web)
-#     with open('label.pickle', 'rb') as web:
-#         le = pickle.load(web)
-#     enctes = le.transform(test[i])
-#     test[i]=enctes
-# #---------------------------------------------------------------------------------------------------------
+train['paint_color_lenc']=train_lenc['paint_color']
+train['type_lenc']=train_lenc['type']
+train['fuel_lenc']=train_lenc['fuel']
+train['title_status_lenc']=train_lenc['title_status']
+test['paint_color_lenc']=test_lenc['paint_color']
+test['type_lenc']=test_lenc['type']
+test['fuel_lenc']=test_lenc['fuel']
+test['title_status_lenc']=test_lenc['title_status']
+#---------------------------------------------------------------------------------------------------------
+# cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
+# # 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
+# all_x = pd.concat([train, test])
+# all_x = pd.get_dummies(all_x, columns=cat_cols)
 
-
+# # 学習データとテストデータに再分割
+# train = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
+# test = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
 
 
 # #---------------------------------------------------------------------------------------------------------
@@ -333,9 +337,9 @@ reg = StackingRegressor(
     estimators=[
                 ('lgb_model0', lgb.LGBMRegressor(random_state=42)),
                 ('lgb_model1', lgb.LGBMRegressor(random_state=42,max_depth=5,num_leaves=28)),
-                ('lgb_model2', lgb.LGBMRegressor(random_state=42,max_depth=6,num_leaves=60))
-                # ('regr0', RandomForestRegressor(random_state=0,max_depth=8,n_estimators=200)),
-                # ('regr1', RandomForestRegressor(random_state=0,max_depth=10,n_estimators=300))
+                ('lgb_model2', lgb.LGBMRegressor(random_state=42,max_depth=6,num_leaves=60)),
+                ('regr0', RandomForestRegressor(random_state=0,max_depth=8,n_estimators=200)),
+                ('regr1', RandomForestRegressor(random_state=0,max_depth=10,n_estimators=300)),
                 ],
     final_estimator=lgb.LGBMRegressor(random_state=42)
 )

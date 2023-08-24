@@ -1,3 +1,11 @@
+# ---------------------------------
+# スタッキング
+# ----------------------------------
+from sklearn.metrics import log_loss,mean_absolute_percentage_error
+from sklearn.model_selection import KFold
+# models.pyにModel1Xgb, Model1NN, Model2Linearを定義しているものとする
+# 各クラスは、fitで学習し、predictで予測値の確率を出力する
+from models import Model1Xgb, Model1NN, Model2Linear
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
@@ -13,11 +21,6 @@ import matplotlib.pyplot as plt # グラフ描画用
 import seaborn as sns; sns.set() # グラフ描画用
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
-from sklearn.metrics import mean_absolute_percentage_error
-import umap
-from geopy.geocoders import OpenCage
-from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
-from concurrent.futures import ThreadPoolExecutor
 
 
 train=pd.read_csv("train.csv")
@@ -201,46 +204,6 @@ test.loc[:,['drive']]=enc_auto.transform(test.loc[:,['drive']])
 
 
 #---------------------------------------------------------------------------------------------------------
-# #enbedding word2vec
-# # from gensim.models import KeyedVectors  #GoogleNews-vectors-negative300.bin
-# # # Load vectors directly from the file
-# # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-# # print(model["statecollege"])
-# # print(model["statecollege"].shape)
-# # # print(model[train['region'].to_list()])
-
-# from sentence_transformers import SentenceTransformer
-# sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
-# train_resion = sbert_model.encode(train['region'].to_list())
-# mapper = umap.UMAP(random_state=0)
-# train_resion = mapper.fit_transform(train_resion)
-# test_resion = sbert_model.encode(test['region'].to_list())
-# test_resion = mapper.fit_transform(test_resion)
-
-# train=train.drop('region',axis=1)
-# test=test.drop('region',axis=1)
-# train_resion=pd.DataFrame(train_resion,columns=['region_0','region_1'])
-# test_resion=pd.DataFrame(test_resion,columns=['region_0','region_1'])
-# train=train.assign(r特徴量生成特徴量生成_0=train_resion['region_0'],resion_1=train_resion['region_1'])
-# test=test.assign(resion_0=test_resion['region_0'],resion_1=test_resion['region_1'])
-
-# cities = np.array(['florence / muscle shoals', 'New York', 'London'])
-# # cities=train['region'].to_numpy()
-# geolocator = GoogleV3(api_key='YOUR_API_KEY_HERE')
-# def get_location(city):
-#     try:
-#         return geolocator.geocode(city)
-#     except (GeocoderTimedOut, GeocoderUnavailable):
-#         return None
-# with ThreadPoolExecutor() as executor:
-#     locations = list(executor.map(get_location, cities))
-# df = pd.DataFrame({'City': cities, 'Latitude': [location.latitude if location else None for location in locations], 'Longitude': [location.longitude if location else None for location in locations]})
-# print(df)
-#---------------------------------------------------------------------------------------------------------
-
-
-
-#---------------------------------------------------------------------------------------------------------
 #labelencoder
 import pickle
 for i in ["paint_color","type","fuel","title_status"]:
@@ -264,115 +227,89 @@ test['type_lenc']=test_lenc['type']
 test['fuel_lenc']=test_lenc['fuel']
 test['title_status_lenc']=test_lenc['title_status']
 #---------------------------------------------------------------------------------------------------------
-# cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
-# # 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
-# all_x = pd.concat([train, test])
-# all_x = pd.get_dummies(all_x, columns=cat_cols)
+cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
+# 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
+all_x = pd.concat([train, test])
+all_x = pd.get_dummies(all_x, columns=cat_cols)
 
-# # 学習データとテストデータに再分割
-# train_nn = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
-# test_nn = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
-
-
-# #---------------------------------------------------------------------------------------------------------
-# #umapで特徴量生成
-# mapper = umap.UMAP(random_state=0)
-# train_umap = mapper.fit_transform(train)
-# train_umap=pd.DataFrame(train_umap,columns=['umap_0','umap_1'])
-# train=train.assign(umap_0=train_umap['umap_0'],umap_1=train_umap['umap_1'])
-# test_umap = mapper.fit_transform(test)
-# test_umap=pd.DataFrame(test_umap,columns=['umap_0','umap_1'])
-# test=test.assign(umap_0=test_umap['umap_0'],umap_1=test_umap['umap_1'])
-# #---------------------------------------------------------------------------------------------------------
+# 学習データとテストデータに再分割
+train_nn = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
+test_nn = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
 
 
 #---------------------------------------------------------------------------------------------------------
-#数値データをrankgaus
-#---------------------------------------------------------------------------------------------------------
-
-
-#---------------------------------------------------------------------------------------------------------
-# #標準化（trainとtestをconcatしてから、標準化）
-# train_test=pd.concat([train,test])
 ms = MinMaxScaler()
-# ms.fit(train_test)
-# train=ms.transform(train)
-# test=ms.transform(test)
 
-# # 標準化（trainでfit）
-# ms.fit(train)
-# train=ms.transform(train)
-# test=ms.transform(test)
-# print(train.min(),train.max())
-# print(test.min(),test.max())
-#標準化(それぞれでfit_transform)
-train = ms.fit_transform(train)
-test = ms.fit_transform(test)
-# train_nn=ms.fit_transform(train_nn)
-# test_nn = ms.fit_transform(test_nn)
-# #---------------------------------------------------------------------------------------------------------
-
-# #---------------------------------------------------------------------------------------------------------
-# #FSFW
-# mi=mutual_info_regression(train, label)
-# train=train*mi
-# test=test*mi
-# mi=mutual_info_regression(train_nn, label)
-# train_nn=train_nn*mi
-# test_nn=test_nn*mi
-# # print(mi)
-# # z=0
-# # zz=[]
-# # for i in range(len(mi)):
-# #     if 0.05>=mi[i]:
-# #         zz.append(i)
-# #     z=z+1
-# # train=np.delete(train,zz,1)
-# # test=np.delete(test,zz,1)
+scaling_columns = ['region','state','type','paint_color','manufacturer','fuel','title_status','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer','paint_color_lenc','type_lenc','fuel_lenc','title_status_lenc'] 
+ms = MinMaxScaler().fit(train[scaling_columns])
+scaled_train = pd.DataFrame(ms.transform(train[scaling_columns]), columns=scaling_columns, index=train.index)
+train.update(scaled_train)
+scaling_columns = ['region','state','type','paint_color','manufacturer','fuel','title_status','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer','paint_color_lenc','type_lenc','fuel_lenc','title_status_lenc'] 
+ms = MinMaxScaler().fit(test[scaling_columns])
+scaled_test = pd.DataFrame(ms.transform(test[scaling_columns]), columns=scaling_columns, index=test.index)
+test.update(scaled_train)
+scaling_columns = ['region','state','manufacturer','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer'] 
+ms = MinMaxScaler().fit(test_nn[scaling_columns])
+scaled_test_nn = pd.DataFrame(ms.transform(test_nn[scaling_columns]), columns=scaling_columns, index=test_nn.index)
+test_nn.update(scaled_train)
+scaling_columns = ['region','state','manufacturer','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer'] 
+ms = MinMaxScaler().fit(train_nn[scaling_columns])
+scaled_train_nn = pd.DataFrame(ms.transform(train_nn[scaling_columns]), columns=scaling_columns, index=train_nn.index)
+train_nn.update(scaled_train_nn)
 # #---------------------------------------------------------------------------------------------------------
 
 
-train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.99,random_state=1)
-lgb_train = lgb.Dataset(train_data, train_label)
-lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
+# 学習データに対する「目的変数を知らない」予測値と、テストデータに対する予測値を返す関数
+def predict_cv(model, train_x, train_y, test_x):
+    preds = []
+    preds_test = []
+    va_idxes = []
 
-# LightGBM parameters
-params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'regression', # 目的 : 回帰  
-        'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
-        'seed':42
-}
+    kf = KFold(n_splits=4, shuffle=True, random_state=71)
 
-# モデルの学習
-model = lgb.train(params,
-                  train_set=lgb_train, # トレーニングデータの指定
-                  valid_sets=lgb_eval, # 検証データの指定
-                  )
+    # クロスバリデーションで学習・予測を行い、予測値とインデックスを保存する
+    for i, (tr_idx, va_idx) in enumerate(kf.split(train_x)):
+        tr_x, va_x = train_x.iloc[tr_idx], train_x.iloc[va_idx]
+        tr_y, va_y = train_y.iloc[tr_idx], train_y.iloc[va_idx]
+        model.fit(tr_x, tr_y, va_x, va_y)
+        pred = model.predict(va_x)
+        preds.append(pred)
+        pred_test = model.predict(test_x)
+        preds_test.append(pred_test)
+        va_idxes.append(va_idx)
 
-# テストデータの予測
-t_pred = model.predict(train_data)
-v_pred = model.predict(valid_data)
-plt.scatter(t_pred, train_label)
-plt.xlabel("train_predict")
-plt.ylabel("train_label")
-plt.show()
-plt.scatter(v_pred, valid_label)
-plt.xlabel("valid_predict")
-plt.ylabel("valid_label")
-plt.show()
+    # バリデーションデータに対する予測値を連結し、その後元の順序に並べ直す
+    va_idxes = np.concatenate(va_idxes)
+    preds = np.concatenate(preds, axis=0)
+    order = np.argsort(va_idxes)
+    pred_train = preds[order]
 
-#---------------------------------------------------------------------------------------------------------
-# モデル評価
-#mean_absolute_percentage_error
-t_m = mean_absolute_percentage_error(train_label,t_pred)
-print('train error :',t_m)
-v_m = mean_absolute_percentage_error(valid_label,v_pred)
-print('valid error :',v_m)
-#---------------------------------------------------------------------------------------------------------
+    # テストデータに対する予測値の平均をとる
+    preds_test = np.mean(preds_test, axis=0)
 
-pred=model.predict(test)
-sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
-sub['ans'] = pred
-sub.to_csv("first.csv", header=False, index=False)
+    return pred_train, preds_test
+
+
+# 1層目のモデル
+# pred_train_1a, pred_train_1bは、学習データのクロスバリデーションでの予測値
+# pred_test_1a, pred_test_1bは、テストデータの予測値
+model_1a = Model1Xgb()
+pred_train_1a, pred_test_1a = predict_cv(model_1a, train, label, test)
+
+model_1b = Model1NN()
+pred_train_1b, pred_test_1b = predict_cv(model_1b, train_nn, label, test_nn)
+
+# 1層目のモデルの評価
+print(f'logloss: {log_loss(label, pred_train_1a, eps=1e-7):.4f}')
+print(f'logloss: {log_loss(label, pred_train_1b, eps=1e-7):.4f}')
+
+# 予測値を特徴量としてデータフレームを作成
+train_x_2 = pd.DataFrame({'pred_1a': pred_train_1a, 'pred_1b': pred_train_1b})
+test_x_2 = pd.DataFrame({'pred_1a': pred_test_1a, 'pred_1b': pred_test_1b})
+
+# 2層目のモデル
+# pred_train_2は、2層目のモデルの学習データのクロスバリデーションでの予測値
+# pred_test_2は、2層目のモデルのテストデータの予測値
+model_2 = Model2Linear()
+pred_train_2, pred_test_2 = predict_cv(model_2, train_x_2, label, test_x_2)
+print(f'logloss: {log_loss(label, pred_train_2, eps=1e-7):.4f}')

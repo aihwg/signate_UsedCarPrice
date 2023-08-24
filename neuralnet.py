@@ -10,14 +10,19 @@ warnings.filterwarnings('ignore')
 from sklearn.metrics import mean_squared_error # モデル評価用(平均二乗誤差)
 from sklearn.metrics import r2_score # モデル評価用(決定係数)
 import matplotlib.pyplot as plt # グラフ描画用
-import seaborn as sns; sns.set() # グラフ描画用
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
 from sklearn.metrics import mean_absolute_percentage_error
-import umap
-from geopy.geocoders import OpenCage
-from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
-from concurrent.futures import ThreadPoolExecutor
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MinMaxScaler    
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+from torch.utils.data import DataLoader, TensorDataset
+from torchmetrics.regression import MeanAbsolutePercentageError
+
 
 
 train=pd.read_csv("train.csv")
@@ -26,30 +31,6 @@ label=train['price']
 train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
-# print(train['region'].nunique())
-# print(train['type'])
-# print(train.info())
-# print(train.shape[0]-train.count())
-# train.hist()
-# plt.tight_layout()
-# plt.show()
-
-
-# #########
-# train=train.drop('year',axis=1)
-# train=train.drop('odometer',axis=1)
-
-# train=train.to_numpy()
-# # print(train.info())
-# for i in range(train.shape[1]):
-#     dictT={}
-#     k=0
-#     for j in range(train.shape[0]):
-#         if train[j][i] not in dictT.keys():
-#             dictT[train[j][i]]=k
-#             k=k+1
-#     print(dictT.keys(),'\n')
-# #########
 
 
 #---------------------------------------------------------------------------------------------------------
@@ -91,9 +72,6 @@ test_miss=test.isnull().any(axis=1)
 test_miss=pd.DataFrame(test_miss)
 test_miss.columns=['miss']
 test_miss=test_miss.astype(int)
-
-train=pd.concat([train,train_miss],axis=1)
-test=pd.concat([test,test_miss],axis=1)
 #---------------------------------------------------------------------------------------------------------
 
 
@@ -201,47 +179,7 @@ test.loc[:,['drive']]=enc_auto.transform(test.loc[:,['drive']])
 
 
 #---------------------------------------------------------------------------------------------------------
-# #enbedding word2vec
-# # from gensim.models import KeyedVectors  #GoogleNews-vectors-negative300.bin
-# # # Load vectors directly from the file
-# # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-# # print(model["statecollege"])
-# # print(model["statecollege"].shape)
-# # # print(model[train['region'].to_list()])
-
-# from sentence_transformers import SentenceTransformer
-# sbert_model = SentenceTransformer('bert-base-nli-mean-tokens')
-# train_resion = sbert_model.encode(train['region'].to_list())
-# mapper = umap.UMAP(random_state=0)
-# train_resion = mapper.fit_transform(train_resion)
-# test_resion = sbert_model.encode(test['region'].to_list())
-# test_resion = mapper.fit_transform(test_resion)
-
-# train=train.drop('region',axis=1)
-# test=test.drop('region',axis=1)
-# train_resion=pd.DataFrame(train_resion,columns=['region_0','region_1'])
-# test_resion=pd.DataFrame(test_resion,columns=['region_0','region_1'])
-# train=train.assign(r特徴量生成特徴量生成_0=train_resion['region_0'],resion_1=train_resion['region_1'])
-# test=test.assign(resion_0=test_resion['region_0'],resion_1=test_resion['region_1'])
-
-# cities = np.array(['florence / muscle shoals', 'New York', 'London'])
-# # cities=train['region'].to_numpy()
-# geolocator = GoogleV3(api_key='YOUR_API_KEY_HERE')
-# def get_location(city):
-#     try:
-#         return geolocator.geocode(city)
-#     except (GeocoderTimedOut, GeocoderUnavailable):
-#         return None
-# with ThreadPoolExecutor() as executor:
-#     locations = list(executor.map(get_location, cities))
-# df = pd.DataFrame({'City': cities, 'Latitude': [location.latitude if location else None for location in locations], 'Longitude': [location.longitude if location else None for location in locations]})
-# print(df)
-#---------------------------------------------------------------------------------------------------------
-
-
-
-#---------------------------------------------------------------------------------------------------------
-#labelencoder
+#neural net用のone-hot encoding
 import pickle
 for i in ["paint_color","type","fuel","title_status"]:
     le = LabelEncoder()
@@ -263,97 +201,103 @@ test['paint_color_lenc']=test_lenc['paint_color']
 test['type_lenc']=test_lenc['type']
 test['fuel_lenc']=test_lenc['fuel']
 test['title_status_lenc']=test_lenc['title_status']
-#---------------------------------------------------------------------------------------------------------
-# cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
-# # 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
-# all_x = pd.concat([train, test])
-# all_x = pd.get_dummies(all_x, columns=cat_cols)
-
-# # 学習データとテストデータに再分割
-# train_nn = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
-# test_nn = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
 
 
-# #---------------------------------------------------------------------------------------------------------
-# #umapで特徴量生成
-# mapper = umap.UMAP(random_state=0)
-# train_umap = mapper.fit_transform(train)
-# train_umap=pd.DataFrame(train_umap,columns=['umap_0','umap_1'])
-# train=train.assign(umap_0=train_umap['umap_0'],umap_1=train_umap['umap_1'])
-# test_umap = mapper.fit_transform(test)
-# test_umap=pd.DataFrame(test_umap,columns=['umap_0','umap_1'])
-# test=test.assign(umap_0=test_umap['umap_0'],umap_1=test_umap['umap_1'])
-# #---------------------------------------------------------------------------------------------------------
+cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
+# 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
+all_x = pd.concat([train, test])
+all_x = pd.get_dummies(all_x, columns=cat_cols)
 
-
-#---------------------------------------------------------------------------------------------------------
-#数値データをrankgaus
+# 学習データとテストデータに再分割
+train = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
+test = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
 #---------------------------------------------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------------------------------------------
-# #標準化（trainとtestをconcatしてから、標準化）
-# train_test=pd.concat([train,test])
 ms = MinMaxScaler()
-# ms.fit(train_test)
-# train=ms.transform(train)
-# test=ms.transform(test)
-
-# # 標準化（trainでfit）
-# ms.fit(train)
-# train=ms.transform(train)
-# test=ms.transform(test)
-# print(train.min(),train.max())
-# print(test.min(),test.max())
 #標準化(それぞれでfit_transform)
 train = ms.fit_transform(train)
 test = ms.fit_transform(test)
-# train_nn=ms.fit_transform(train_nn)
-# test_nn = ms.fit_transform(test_nn)
 # #---------------------------------------------------------------------------------------------------------
 
-# #---------------------------------------------------------------------------------------------------------
-# #FSFW
-# mi=mutual_info_regression(train, label)
-# train=train*mi
-# test=test*mi
-# mi=mutual_info_regression(train_nn, label)
-# train_nn=train_nn*mi
-# test_nn=test_nn*mi
-# # print(mi)
-# # z=0
-# # zz=[]
-# # for i in range(len(mi)):
-# #     if 0.05>=mi[i]:
-# #         zz.append(i)
-# #     z=z+1
-# # train=np.delete(train,zz,1)
-# # test=np.delete(test,zz,1)
-# #---------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------
+#FSFW
+mi=mutual_info_regression(train, label)
+train=train*mi
+test=test*mi
+#---------------------------------------------------------------------------------------------------------
+
+#ここで、missのfeatureを追加
+train_miss = ms.fit_transform(train_miss)
+test_miss=ms.fit_transform(test_miss)
+train=np.hstack([train,train_miss])
+test=np.hstack([test,test_miss])
+train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7,random_state=1)
+train_data = torch.Tensor(train_data)
+valid_data = torch.Tensor(valid_data)
+train_label = torch.Tensor(train_label.to_numpy())
+valid_label = torch.Tensor(valid_label.to_numpy())
+
+# Create PyTorch datasets and data loaders
+train_dataset = TensorDataset(train_data, train_label)
+test_dataset = TensorDataset(valid_data, valid_label)
+train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False)
+class NNModel(nn.Module):
+    def __init__(self, input_shape):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(input_shape, 100),
+            nn.ReLU(),
+            nn.Linear(100, 60),
+            nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(60, 30),
+            nn.ReLU(),
+            nn.Linear(30, 10),
+            nn.ReLU(),
+            nn.Linear(10, 1),
+            nn.Identity()
+        )
+    
+    def forward(self, x):
+        y = self.layers(x)
+        return y
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+torch.manual_seed(42)
+model = NNModel(train_data.size()[1]).to(device)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+loss_fn = nn.MSELoss()
+n_epochs = 100
+for epoch in range(1, n_epochs + 1):
+    model.train()
+    i=-1
+    for x_batch, y_batch in train_loader:
+        i=i+1
+        x_batch = x_batch.to(device)
+        y_batch = y_batch.to(device)
+        optimizer.zero_grad()
+        yhat = model(x_batch)
+        loss = loss_fn(yhat, y_batch)
+        loss.backward()
+        optimizer.step()
+        if (i + 1) % 10 == 0:
+            print(f'Epoch [{epoch + 1}/{10}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}')
+
+# Evaluate the model on the test data
+with torch.no_grad():
+    total_loss = 0
+    for inputs, targets in test_loader:
+        outputs = model(inputs)
+        loss = loss_fn(outputs, targets)
+        total_loss += loss.item()
+    mean_loss = total_loss / len(test_loader)
+    print(f'Test Loss: {mean_loss:.4f}')
 
 
-train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.99,random_state=1)
-lgb_train = lgb.Dataset(train_data, train_label)
-lgb_eval = lgb.Dataset(valid_data, valid_label, reference=lgb_train) 
-
-# LightGBM parameters
-params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'regression', # 目的 : 回帰  
-        'metric': {'rmse'}, # 評価指標 : rsme(平均二乗誤差の平方根) 
-        'seed':42
-}
-
-# モデルの学習
-model = lgb.train(params,
-                  train_set=lgb_train, # トレーニングデータの指定
-                  valid_sets=lgb_eval, # 検証データの指定
-                  )
-
-# テストデータの予測
-t_pred = model.predict(train_data)
-v_pred = model.predict(valid_data)
+t_pred=model(train_data).detach().cpu().numpy()
+v_pred=model(valid_data).detach().cpu().numpy()
 plt.scatter(t_pred, train_label)
 plt.xlabel("train_predict")
 plt.ylabel("train_label")
@@ -372,7 +316,7 @@ v_m = mean_absolute_percentage_error(valid_label,v_pred)
 print('valid error :',v_m)
 #---------------------------------------------------------------------------------------------------------
 
-pred=model.predict(test)
-sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
-sub['ans'] = pred
-sub.to_csv("first.csv", header=False, index=False)
+# pred=model(test).detach().cpu().numpy()
+# sub = pd.read_csv('submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
+# sub['ans'] = pred
+# sub.to_csv("first.csv", header=False, index=False)

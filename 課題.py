@@ -7,7 +7,8 @@ lightgbmm
 
 スタッキング〇
 〇neural netでやってみる
-〇置き換えて消したfeatureを入れてみる
+置き換えて消したfeatureを入れてみる paint_color,type,fuel,title_status〇
+外れ値削除〇
 
 特徴量の作成(Feature Engineering)
     年間総距離は走行距離を年数で割る、販売する時期を2023とする〇
