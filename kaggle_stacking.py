@@ -29,30 +29,6 @@ label=train['price']
 train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
-# print(train['region'].nunique())
-# print(train['type'])
-# print(train.info())
-# print(train.shape[0]-train.count())
-# train.hist()
-# plt.tight_layout()
-# plt.show()
-
-
-# #########
-# train=train.drop('year',axis=1)
-# train=train.drop('odometer',axis=1)
-
-# train=train.to_numpy()
-# # print(train.info())
-# for i in range(train.shape[1]):
-#     dictT={}
-#     k=0
-#     for j in range(train.shape[0]):
-#         if train[j][i] not in dictT.keys():
-#             dictT[train[j][i]]=k
-#             k=k+1
-#     print(dictT.keys(),'\n')
-# #########
 
 
 #---------------------------------------------------------------------------------------------------------

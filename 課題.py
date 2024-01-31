@@ -18,7 +18,7 @@ lightgbmm
     クラスタリングでinstanceごとに、クラスターまでの距離をfeatureに加えたり
 
 前処理 
-    odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正i〇☆☆☆☆☆☆☆☆☆☆☆☆
+    odometerのデータの違和感の調査 走行距離がマイナス・極端に大きい数値に何かあるか確認し、必要があれば修正i〇
     region：embeddingやる〇※label encodingの方が良かった
     region：地域ごとの緯度と経度を説明変数に〇そもそも、大量にジオコーディングする方法が有料しかなかった。
     標準化：train_dataの平均とかを使って、testデータを標準化〇※上手くいかなかった
@@ -91,7 +91,7 @@ lightgbmm
     train error : 0.6047578769248435
     valid error : 0.6582718075213234
 
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
+    前処理：odometerの-131869を131869
     前処理：year 2023以上を-1000
     Feature Engineering：年間走行距離
     Feature Engineering：行ごとに欠損値あるか
@@ -106,7 +106,7 @@ lightgbmm
     valid error : 0.6582718075213234
     
     前処理：region target encoding
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
+    前処理：odometerの-131869を131869
     前処理：year 2023以上を-1000
     Feature Engineering：年間走行距離
     Feature Engineering：行ごとに欠損値あるか
@@ -120,7 +120,7 @@ lightgbmm
     train error : 0.6028151453121945
     valid error : 0.6573153522058538
 
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
+    前処理：odometerの-131869を131869
     前処理：year 2023以上を-1000
     Feature Engineering：年間走行距離
     Feature Engineering：行ごとに欠損値あるか
@@ -134,7 +134,7 @@ lightgbmm
     train error : 0.6020156261941936
     valid error : 0.6544972425600211
 
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆and 外れ値修正
+    前処理：odometerの-131869を131869and 外れ値修正
     前処理：year 2023以上を-1000
     Feature Engineering：年間走行距離
     Feature Engineering：行ごとに欠損値あるか
@@ -151,10 +151,10 @@ lightgbmm
     
 
     ◎
-    前処理：odometerの-131869を131869☆☆☆☆☆☆☆☆☆☆☆☆
-    前処理：year 2023以上を-1000
-    Feature Engineering：年間走行距離
-    Feature Engineering：行ごとに欠損値あるか
+    前処理：odometerの-131869を131869
+    前処理：year 2023以上を-1000(外れ値に対処する)
+    Feature Engineering：年間走行距離を算出
+    Feature Engineering：行ごとに欠損値あるかを確認
     前処理：manufacturer 全角半角変換
     前処理：cylinders カテゴリ変数から数値変数(other=-1)
     前処理：size カテゴリ変数から数値変数
