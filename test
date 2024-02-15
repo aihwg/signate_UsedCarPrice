@@ -1,1 +1,15 @@
-test
+git init
+
+git config --global init.defaultBranch main
+
+git remote add origin git@github.com:aihwg/signate_UsedCarPrice.git
+
+git pull origin main
+
+git status
+
+git add .
+
+git commit -m 'a'
+
+git push -u origin main
