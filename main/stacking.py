@@ -1,11 +1,3 @@
-# ---------------------------------
-# スタッキング
-# ----------------------------------
-from sklearn.metrics import log_loss,mean_absolute_percentage_error
-from sklearn.model_selection import KFold
-# models.pyにModel1Xgb, Model1NN, Model2Linearを定義しているものとする
-# 各クラスは、fitで学習し、predictで予測値の確率を出力する
-from models import Model1Xgb, Model1NN, Model2Linear
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
@@ -13,23 +5,24 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import mutual_info_regression
 import numpy as np
 import lightgbm as lgb
-import warnings # 実行に関係ない警告を無視
+import warnings
 warnings.filterwarnings('ignore')
-from sklearn.metrics import mean_squared_error # モデル評価用(平均二乗誤差)
-from sklearn.metrics import r2_score # モデル評価用(決定係数)
-import matplotlib.pyplot as plt # グラフ描画用
-import seaborn as sns; sns.set() # グラフ描画用
+import matplotlib.pyplot as plt
 import mojimoji
 from sklearn.preprocessing import TargetEncoder
+from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import StackingRegressor
 
+# データの読み込み
+train=pd.read_csv("../data/train.csv")
+test=pd.read_csv("../data/test.csv")
 
-train=pd.read_csv("train.csv")
-test=pd.read_csv("test.csv")
+# ラベルの取得と特徴量の準備
 label=train['price']
 train=train.drop('price',axis=1)
 train=train.drop('id',axis=1)
 test=test.drop('id',axis=1)
-
 
 #---------------------------------------------------------------------------------------------------------
 # #前処理odometer
@@ -40,8 +33,7 @@ for i in range(train.shape[0]):
 
 
 #---------------------------------------------------------------------------------------------------------
-#前処理year:~2022
-# print(type(train['year'][0]))
+#前処理year:外れ値に対処
 for i in range(train.shape[0]):
     if train['year'][i]>=2023:
         train['year'][i]=train['year'][i]-1000
@@ -65,14 +57,10 @@ train_miss=train.isnull().any(axis=1)
 train_miss=pd.DataFrame(train_miss)
 train_miss.columns=['miss']
 train_miss=train_miss.astype(int)
-# train=pd.concat([train,miss],axis=1)
 test_miss=test.isnull().any(axis=1)
 test_miss=pd.DataFrame(test_miss)
 test_miss.columns=['miss']
 test_miss=test_miss.astype(int)
-
-train=pd.concat([train,train_miss],axis=1)
-test=pd.concat([test,test_miss],axis=1)
 #---------------------------------------------------------------------------------------------------------
 
 
@@ -203,89 +191,53 @@ test['type_lenc']=test_lenc['type']
 test['fuel_lenc']=test_lenc['fuel']
 test['title_status_lenc']=test_lenc['title_status']
 #---------------------------------------------------------------------------------------------------------
-cat_cols = ['paint_color_lenc', 'type_lenc', 'fuel_lenc', 'title_status_lenc']
-# 学習データとテストデータを結合してget_dummiesによるone-hot encodingを行う
-all_x = pd.concat([train, test])
-all_x = pd.get_dummies(all_x, columns=cat_cols)
 
-# 学習データとテストデータに再分割
-train_nn = all_x.iloc[:train.shape[0], :].reset_index(drop=True)
-test_nn = all_x.iloc[train.shape[0]:, :].reset_index(drop=True)
-
-
-#---------------------------------------------------------------------------------------------------------
 ms = MinMaxScaler()
-
-scaling_columns = ['region','state','type','paint_color','manufacturer','fuel','title_status','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer','paint_color_lenc','type_lenc','fuel_lenc','title_status_lenc'] 
-ms = MinMaxScaler().fit(train[scaling_columns])
-scaled_train = pd.DataFrame(ms.transform(train[scaling_columns]), columns=scaling_columns, index=train.index)
-train.update(scaled_train)
-scaling_columns = ['region','state','type','paint_color','manufacturer','fuel','title_status','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer','paint_color_lenc','type_lenc','fuel_lenc','title_status_lenc'] 
-ms = MinMaxScaler().fit(test[scaling_columns])
-scaled_test = pd.DataFrame(ms.transform(test[scaling_columns]), columns=scaling_columns, index=test.index)
-test.update(scaled_train)
-scaling_columns = ['region','state','manufacturer','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer'] 
-ms = MinMaxScaler().fit(test_nn[scaling_columns])
-scaled_test_nn = pd.DataFrame(ms.transform(test_nn[scaling_columns]), columns=scaling_columns, index=test_nn.index)
-test_nn.update(scaled_train)
-scaling_columns = ['region','state','manufacturer','transmission','drive','cylinders','size','condition','annual_mileage','year','odometer'] 
-ms = MinMaxScaler().fit(train_nn[scaling_columns])
-scaled_train_nn = pd.DataFrame(ms.transform(train_nn[scaling_columns]), columns=scaling_columns, index=train_nn.index)
-train_nn.update(scaled_train_nn)
+#標準化
+train = ms.fit_transform(train)
+test = ms.fit_transform(test)
 # #---------------------------------------------------------------------------------------------------------
 
+#---------------------------------------------------------------------------------------------------------
+#Feature weighting
+mi=mutual_info_regression(train, label)
+train=train*mi
+test=test*mi
+#---------------------------------------------------------------------------------------------------------
 
-# 学習データに対する「目的変数を知らない」予測値と、テストデータに対する予測値を返す関数
-def predict_cv(model, train_x, train_y, test_x):
-    preds = []
-    preds_test = []
-    va_idxes = []
+#欠損値がある行をfeatureに追加
+train_miss = ms.fit_transform(train_miss)
+test_miss=ms.fit_transform(test_miss)
+train=np.hstack([train,train_miss])
+test=np.hstack([test,test_miss])
+train_data,valid_data,train_label,valid_label=train_test_split(train,label,train_size=0.7,random_state=1)
 
-    kf = KFold(n_splits=4, shuffle=True, random_state=71)
+reg = StackingRegressor(
+    estimators=[
+                ('lgb_model0', lgb.LGBMRegressor(random_state=42)),
+                ('lgb_model1', lgb.LGBMRegressor(random_state=42,max_depth=5,num_leaves=28)),
+                ('lgb_model2', lgb.LGBMRegressor(random_state=42,max_depth=6,num_leaves=60)),
+                ('regr0', RandomForestRegressor(random_state=0,max_depth=8,n_estimators=200)),
+                ('regr1', RandomForestRegressor(random_state=0,max_depth=10,n_estimators=300)),
+                ],
+    final_estimator=lgb.LGBMRegressor(random_state=42)
+)
+reg.fit(train_data, train_label)
+#---------------------------------------------------------------------------------------------------------
+print('train error :',mean_absolute_percentage_error(train_label,reg.predict(train_data)))
+print('valid error :',mean_absolute_percentage_error(valid_label,reg.predict(valid_data)))
+#---------------------------------------------------------------------------------------------------------
+plt.scatter(reg.predict(train_data), train_label)
+plt.xlabel("train_predict")
+plt.ylabel("train_label")
+plt.show()
+plt.scatter(reg.predict(valid_data), valid_label)
+plt.xlabel("valid_predict")
+plt.ylabel("valid_label")
+plt.show()
 
-    # クロスバリデーションで学習・予測を行い、予測値とインデックスを保存する
-    for i, (tr_idx, va_idx) in enumerate(kf.split(train_x)):
-        tr_x, va_x = train_x.iloc[tr_idx], train_x.iloc[va_idx]
-        tr_y, va_y = train_y.iloc[tr_idx], train_y.iloc[va_idx]
-        model.fit(tr_x, tr_y, va_x, va_y)
-        pred = model.predict(va_x)
-        preds.append(pred)
-        pred_test = model.predict(test_x)
-        preds_test.append(pred_test)
-        va_idxes.append(va_idx)
-
-    # バリデーションデータに対する予測値を連結し、その後元の順序に並べ直す
-    va_idxes = np.concatenate(va_idxes)
-    preds = np.concatenate(preds, axis=0)
-    order = np.argsort(va_idxes)
-    pred_train = preds[order]
-
-    # テストデータに対する予測値の平均をとる
-    preds_test = np.mean(preds_test, axis=0)
-
-    return pred_train, preds_test
-
-
-# 1層目のモデル
-# pred_train_1a, pred_train_1bは、学習データのクロスバリデーションでの予測値
-# pred_test_1a, pred_test_1bは、テストデータの予測値
-model_1a = Model1Xgb()
-pred_train_1a, pred_test_1a = predict_cv(model_1a, train, label, test)
-
-model_1b = Model1NN()
-pred_train_1b, pred_test_1b = predict_cv(model_1b, train_nn, label, test_nn)
-
-# 1層目のモデルの評価
-print(f'logloss: {log_loss(label, pred_train_1a, eps=1e-7):.4f}')
-print(f'logloss: {log_loss(label, pred_train_1b, eps=1e-7):.4f}')
-
-# 予測値を特徴量としてデータフレームを作成
-train_x_2 = pd.DataFrame({'pred_1a': pred_train_1a, 'pred_1b': pred_train_1b})
-test_x_2 = pd.DataFrame({'pred_1a': pred_test_1a, 'pred_1b': pred_test_1b})
-
-# 2層目のモデル
-# pred_train_2は、2層目のモデルの学習データのクロスバリデーションでの予測値
-# pred_test_2は、2層目のモデルのテストデータの予測値
-model_2 = Model2Linear()
-pred_train_2, pred_test_2 = predict_cv(model_2, train_x_2, label, test_x_2)
-print(f'logloss: {log_loss(label, pred_train_2, eps=1e-7):.4f}')
+pred=reg.predict(test)
+print(pred)
+sub = pd.read_csv('../data/submit_sample.csv', encoding = 'UTF-8', names=['id', 'ans'])
+sub['ans'] = pred
+sub.to_csv("test_prediction.csv", header=False, index=False)
